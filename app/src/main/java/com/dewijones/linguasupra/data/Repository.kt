@@ -71,7 +71,7 @@ class Repository(
         while (isDone(day)) {
             streak += 1
             day = day.minusDays(1)
-            if (streak > 3650) break // safety
+            if (streak > 3650) break
         }
         streak
     }
