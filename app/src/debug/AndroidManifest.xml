@@ -20,6 +20,10 @@
                 <action android:name="com.dewijones.linguasupra.DEBUG_FIRE_REMINDER" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".debug.ExportDbReceiver"
+            android:exported="true" />
     </application>
 
 </manifest>
