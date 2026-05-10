@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">LinguaSupra</string>
+
+    <!-- Banner notification -->
+    <string name="banner_title">Today\'s lessons</string>
+    <string name="banner_empty">Add some languages to begin 👋</string>
+    <string name="banner_plus_one_cd">Mark one done</string>
+    <string name="banner_plus_one_cd_for">Mark one %1$s lesson done</string>
 </resources>
