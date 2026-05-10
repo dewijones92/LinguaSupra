@@ -107,6 +107,9 @@ dependencies {
     // Coroutines
     implementation(libs.coroutines.android)
 
+    // Gemini Nano (on-device) via Google AI Edge SDK
+    implementation(libs.google.ai.edge.aicore)
+
     // Unit tests (JVM)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
