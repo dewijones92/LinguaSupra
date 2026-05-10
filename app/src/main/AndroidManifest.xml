@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Battery optimisation exemption requested at runtime via system intent;
          no manifest permission needed for the user-facing dialogue. -->
 
@@ -30,11 +32,28 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".notify.BannerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="ongoing_quota_progress_indicator" />
+        </service>
+
         <receiver
             android:name=".notify.CompletionReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.dewijones.linguasupra.ACTION_COMPLETE_LANGUAGE" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".notify.BannerDismissReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.dewijones.linguasupra.ACTION_BANNER_DISMISSED" />
             </intent-filter>
         </receiver>
 

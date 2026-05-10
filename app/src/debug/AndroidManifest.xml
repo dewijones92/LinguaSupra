@@ -24,6 +24,18 @@
         <receiver
             android:name=".debug.ExportDbReceiver"
             android:exported="true" />
+
+        <!--
+            Debug-only override: exposes the banner dismiss receiver so we
+            can simulate the deleteIntent firing from adb. Production keeps
+            exported=false; the platform's own deleteIntent dispatch is
+            same-UID so it doesn't need export there.
+        -->
+        <receiver
+            android:name=".notify.BannerDismissReceiver"
+            android:exported="true"
+            tools:node="merge"
+            tools:replace="android:exported" />
     </application>
 
 </manifest>

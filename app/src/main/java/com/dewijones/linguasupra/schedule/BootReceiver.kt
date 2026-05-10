@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.dewijones.linguasupra.data.AppContainer
-import com.dewijones.linguasupra.notify.BannerNotificationManager
+import com.dewijones.linguasupra.notify.BannerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,7 +31,9 @@ class BootReceiver : BroadcastReceiver() {
             try {
                 val app = context.applicationContext
                 val container = AppContainer.get(app)
-                BannerNotificationManager(app, container.repository).refresh()
+                // BOOT_COMPLETED is one of the few broadcasts allowed to
+                // start a foreground service from the background on API 31+.
+                BannerService.start(app)
                 ReminderScheduler(app, container.dateProvider).scheduleAll()
             } finally {
                 pending.finish()
