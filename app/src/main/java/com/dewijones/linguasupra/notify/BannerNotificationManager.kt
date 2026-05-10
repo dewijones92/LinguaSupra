@@ -129,7 +129,7 @@ class BannerNotificationManager(
 
             setOnClickPendingIntent(
                 R.id.row_plus,
-                CompletionReceiver.pendingIntent(context, lp.languageId),
+                CompletionReceiver.pendingIntent(context, lp),
             )
             setContentDescription(
                 R.id.row_plus,

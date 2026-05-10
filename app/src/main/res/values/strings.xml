@@ -7,4 +7,6 @@
     <string name="banner_empty">Add some languages to begin 👋</string>
     <string name="banner_plus_one_cd">Mark one done</string>
     <string name="banner_plus_one_cd_for">Mark one %1$s lesson done</string>
+    <string name="undo_action">Undo</string>
+    <string name="undo_prompt">Tap UNDO if that wasn\'t you</string>
 </resources>

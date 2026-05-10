@@ -32,6 +32,14 @@ class Repository(
         )
     }
 
+    /**
+     * Remove the most recent completion for a language on today's local day.
+     * Returns true if a row was deleted, false if there was nothing to undo
+     * (e.g. day rolled over, count is already zero).
+     */
+    suspend fun undoLastCompletion(languageId: Long): Boolean =
+        completionDao.deleteMostRecentForDay(languageId, dateProvider.todayIso()) > 0
+
     suspend fun addLanguage(
         name: String,
         dailyQuota: Int,
