@@ -24,10 +24,28 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    signingConfigs {
+        // Stable debug keystore committed to the repo so every CI run + every
+        // local build signs with the same key. Without this, the auto-release
+        // workflow regenerates a fresh debug keystore each run, which means
+        // every new release APK has a different signing fingerprint and the
+        // user has to uninstall to update. Debug-only — no Play Store risk.
+        getByName("debug") {
+            storeFile = file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Auto-release ships the debug variant for sideload, so reuse the
+            // stable debug signing config here too. If we ever publish to
+            // Play Store this needs its own real keystore.
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             applicationIdSuffix = ".debug"
