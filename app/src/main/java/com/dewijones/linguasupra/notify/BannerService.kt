@@ -1,5 +1,6 @@
 package com.dewijones.linguasupra.notify
 
+import android.app.Notification
 import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -36,6 +37,8 @@ class BannerService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var observationJob: Job? = null
+    private var lastNotification: Notification? = null
+    private lateinit var bannerManager: BannerNotificationManager
     private val dateChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Intent.ACTION_DATE_CHANGED ||
@@ -50,11 +53,13 @@ class BannerService : Service() {
         super.onCreate()
         Notifications.ensureChannels(this)
         val container = AppContainer.get(applicationContext)
-        val mgr = BannerNotificationManager(applicationContext, container.repository)
+        bannerManager = BannerNotificationManager(applicationContext, container.repository)
+        val placeholder = bannerManager.placeholderNotification()
+        lastNotification = placeholder
         try {
             startForeground(
                 Notifications.BANNER_NOTIFICATION_ID,
-                mgr.placeholderNotification(),
+                placeholder,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
             )
         } catch (e: Exception) {
@@ -77,16 +82,17 @@ class BannerService : Service() {
     private fun restartObservation() {
         observationJob?.cancel()
         val container = AppContainer.get(applicationContext)
-        val mgr = BannerNotificationManager(applicationContext, container.repository)
         observationJob = scope.launch {
             container.repository.observeTodayProgress().collect { progress ->
                 Log.i(TAG, "observation emit, progress=${progress.size} langs")
+                val notification = bannerManager.notificationFor(progress)
+                lastNotification = notification
                 // Update the FGS notification via startForeground so it stays
                 // owned by the service rather than living as a separate post.
                 runCatching {
                     startForeground(
                         Notifications.BANNER_NOTIFICATION_ID,
-                        mgr.notificationFor(progress),
+                        notification,
                         ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
                     )
                 }.onFailure { Log.e(TAG, "startForeground update failed", it) }
@@ -94,7 +100,22 @@ class BannerService : Service() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_REPOST) {
+            // User swiped the banner. Re-post the most recent notification we
+            // built — observation is still running, so a fresh emit will
+            // overwrite this shortly if data changed in the meantime.
+            val n = lastNotification ?: bannerManager.placeholderNotification()
+            runCatching {
+                startForeground(
+                    Notifications.BANNER_NOTIFICATION_ID,
+                    n,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+                )
+            }.onFailure { Log.e(TAG, "repost failed", it) }
+        }
+        return START_STICKY
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -106,6 +127,7 @@ class BannerService : Service() {
 
     companion object {
         private const val TAG = "BannerService"
+        private const val ACTION_REPOST = "com.dewijones.linguasupra.notify.BannerService.REPOST"
 
         /**
          * Idempotent — calling repeatedly is safe; Android folds duplicate
@@ -123,6 +145,26 @@ class BannerService : Service() {
                 ContextCompat.startForegroundService(context, intent)
             } catch (e: Exception) {
                 Log.w(TAG, "startForegroundService refused", e)
+            }
+        }
+
+        /**
+         * Asks the running BannerService to re-post its current notification.
+         * Used by [BannerDismissReceiver] when the user swipes the banner away
+         * — Android 14+ allows individual swipe of FGS notifications, and we
+         * want the banner to be sticky from the user's POV.
+         *
+         * Safe to call from a BroadcastReceiver: an already-running FGS can
+         * accept new intents without the API 31+ background-start restriction.
+         */
+        fun requestRepost(context: Context) {
+            val intent = Intent(context, BannerService::class.java).apply {
+                action = ACTION_REPOST
+            }
+            try {
+                ContextCompat.startForegroundService(context, intent)
+            } catch (e: Exception) {
+                Log.w(TAG, "repost request refused", e)
             }
         }
     }

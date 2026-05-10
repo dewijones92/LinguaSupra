@@ -50,6 +50,14 @@
         </receiver>
 
         <receiver
+            android:name=".notify.BannerDismissReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.dewijones.linguasupra.ACTION_BANNER_DISMISSED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".schedule.ReminderReceiver"
             android:exported="false">
             <intent-filter>
