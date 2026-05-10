@@ -44,6 +44,38 @@ class Repository(
     suspend fun undoLastCompletion(languageId: Long): Boolean =
         completionDao.deleteMostRecentForDay(languageId, dateProvider.todayIso()) > 0
 
+    /**
+     * Current streak: consecutive days, ending no later than today, on which
+     * every active language hit its daily quota. Today only counts if it's
+     * already complete; if it isn't, we look at yesterday — that way the
+     * streak doesn't appear to "reset" mid-morning before you've done your
+     * day's lessons.
+     */
+    fun observeStreak(): Flow<Int> = combine(
+        completionDao.observeAll(),
+        languageDao.observeActive(),
+    ) { all, languages ->
+        if (languages.isEmpty()) return@combine 0
+        val byDay: Map<String, Map<Long, Int>> = all
+            .groupBy { it.dayLocalIso }
+            .mapValues { (_, rows) -> rows.groupingBy { it.languageId }.eachCount() }
+        val today = LocalDate.now(ZoneId.systemDefault())
+        val isoFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+        fun isDone(day: LocalDate): Boolean {
+            val counts = byDay[day.format(isoFormatter)].orEmpty()
+            return languages.all { (counts[it.id] ?: 0) >= it.dailyQuota }
+        }
+        var streak = 0
+        var day = today
+        if (!isDone(day)) day = day.minusDays(1)
+        while (isDone(day)) {
+            streak += 1
+            day = day.minusDays(1)
+            if (streak > 3650) break
+        }
+        streak
+    }
+
     /** All completions newest-first, joined with language for display. */
     fun observeAllCompletionsWithLanguage(): Flow<List<CompletionWithLanguage>> =
         combine(completionDao.observeAll(), languageDao.observeAllIncludingInactive()) { rows, languages ->
