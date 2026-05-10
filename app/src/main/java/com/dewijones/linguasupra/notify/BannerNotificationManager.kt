@@ -41,6 +41,34 @@ class BannerNotificationManager(
         NotificationManagerCompat.from(context).cancel(Notifications.BANNER_NOTIFICATION_ID)
     }
 
+    /**
+     * Build the full banner notification for a known progress list. Used by
+     * [BannerService] which already has the latest progress in scope and
+     * doesn't need to round-trip back through the repository.
+     */
+    fun notificationFor(progress: List<LanguageProgress>): Notification =
+        build(progress.sortedBy { it.displayOrder })
+
+    /**
+     * Synchronous placeholder used at FGS startup before Repository emits.
+     * `startForeground` requires a notification within ~10 seconds, so we
+     * build something minimal here and let [refresh] replace it.
+     */
+    fun placeholderNotification(): Notification {
+        Notifications.ensureChannels(context)
+        return NotificationCompat.Builder(context, Notifications.BANNER_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setOngoing(true)
+            .setShowWhen(false)
+            .setOnlyAlertOnce(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentTitle(context.getString(R.string.banner_title))
+            .setContentText("…")
+            .setContentIntent(launchAppIntent())
+            .build()
+    }
+
     private fun build(progress: List<LanguageProgress>): Notification {
         val pkg = context.packageName
         return NotificationCompat.Builder(context, Notifications.BANNER_CHANNEL_ID)

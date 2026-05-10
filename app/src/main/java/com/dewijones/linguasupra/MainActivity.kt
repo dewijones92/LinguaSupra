@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.dewijones.linguasupra.ui.home.HomeScreen
+import com.dewijones.linguasupra.ui.permissions.PermissionGate
 import com.dewijones.linguasupra.ui.settings.SettingsScreen
 import com.dewijones.linguasupra.ui.theme.LinguaSupraTheme
 
@@ -16,7 +17,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { LinguaSupraTheme { AppNav() } }
+        setContent {
+            LinguaSupraTheme {
+                PermissionGate { AppNav() }
+            }
+        }
     }
 }
 

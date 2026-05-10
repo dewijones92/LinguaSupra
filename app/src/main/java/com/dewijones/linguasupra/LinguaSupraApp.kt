@@ -2,18 +2,12 @@ package com.dewijones.linguasupra
 
 import android.app.Application
 import com.dewijones.linguasupra.data.AppContainer
-import com.dewijones.linguasupra.notify.BannerNotificationManager
 import com.dewijones.linguasupra.notify.Notifications
 import com.dewijones.linguasupra.schedule.ReminderScheduler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 
 class LinguaSupraApp : Application() {
 
     val container: AppContainer by lazy { AppContainer.get(this) }
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -22,9 +16,11 @@ class LinguaSupraApp : Application() {
         // (cheap, sub-ms) so a fresh install picks them up without waiting
         // for boot.
         ReminderScheduler(this, container.dateProvider).scheduleAll()
-        // Post the banner once on app start so it is visible from first launch.
-        appScope.launch {
-            BannerNotificationManager(applicationContext, container.repository).refresh()
-        }
+        // The banner is now owned by BannerService (a foreground service),
+        // started from MainActivity once the user has granted
+        // POST_NOTIFICATIONS, and from BootReceiver after a reboot.
+        // We deliberately do NOT start it here — Application.onCreate runs
+        // even when the process is woken by background broadcasts, where
+        // startForegroundService would throw on API 31+.
     }
 }
