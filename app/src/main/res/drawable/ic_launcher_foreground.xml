@@ -4,12 +4,19 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Adaptive icons reserve the outer 18dp on every side as parallax space.
-         Drawing happens in the inner 72x72 region centred at (54, 54). -->
+    <!-- Three stacked speech bubbles in the language-palette accent colours
+         (Latin purple at the back, Mandarin gold middle, Welsh red front),
+         centred in the inner 72x72 safe zone. -->
+    <path
+        android:fillColor="#7B3FA0"
+        android:pathData="M22,58 H56 a8,8 0 0 1 8,8 V78 a8,8 0 0 1 -8,8 H38 l-7,9 v-9 h-9 a8,8 0 0 1 -8,-8 V66 a8,8 0 0 1 8,-8 z" />
+    <path
+        android:fillColor="#FFB400"
+        android:pathData="M40,46 H74 a8,8 0 0 1 8,8 V66 a8,8 0 0 1 -8,8 H56 l-7,9 v-9 h-9 a8,8 0 0 1 -8,-8 V54 a8,8 0 0 1 8,-8 z" />
+    <path
+        android:fillColor="#C40233"
+        android:pathData="M30,30 H64 a8,8 0 0 1 8,8 V50 a8,8 0 0 1 -8,8 H46 l-7,9 v-9 h-9 a8,8 0 0 1 -8,-8 V38 a8,8 0 0 1 8,-8 z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M44,30 H56 a8,8 0 0 1 8,8 V60 a8,8 0 0 1 -8,8 H50 l-8,10 v-10 h-6 a8,8 0 0 1 -8,-8 V38 a8,8 0 0 1 8,-8 z" />
-    <path
-        android:fillColor="#FFB300"
-        android:pathData="M48,46 h12 M48,52 h8" />
+        android:pathData="M36,40 h22 M36,46 h14" />
 </vector>
