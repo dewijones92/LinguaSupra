@@ -442,6 +442,7 @@ private fun SelfieAvatar(
 @Composable
 private fun LanguageRow(progress: LanguageProgress, onPlusOne: () -> Unit) {
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
     var confettiTrigger by remember { mutableIntStateOf(0) }
     val cardScaleTarget = if (progress.isComplete) 1.02f else 1f
     val cardScale by animateFloatAsState(
@@ -475,7 +476,8 @@ private fun LanguageRow(progress: LanguageProgress, onPlusOne: () -> Unit) {
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "${progress.flagEmoji} ${progress.name}",
+                        text = "${progress.flagEmoji} ${progress.name} ↗",
+                        modifier = Modifier.clickable { DuolingoIntents.openCourse(context) },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
