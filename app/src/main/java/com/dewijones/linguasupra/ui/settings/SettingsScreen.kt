@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -56,6 +57,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val viewModel: SettingsViewModel = viewModel(factory = settingsViewModelFactory(context))
     val languages by viewModel.languages.collectAsStateWithLifecycle()
+    val nanoEnabled by viewModel.nanoEnabled.collectAsStateWithLifecycle()
     var showAddSheet by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -80,6 +82,8 @@ fun SettingsScreen(
     ) { padding ->
         SettingsContent(
             languages = languages,
+            nanoEnabled = nanoEnabled,
+            onSetNanoEnabled = viewModel::setNanoEnabled,
             onIncrementQuota = { viewModel.updateQuota(it, it.dailyQuota + 1) },
             onDecrementQuota = { viewModel.updateQuota(it, it.dailyQuota - 1) },
             onDelete = { viewModel.delete(it.id) },
@@ -108,40 +112,94 @@ fun SettingsScreen(
 @Composable
 private fun SettingsContent(
     languages: List<Language>,
+    nanoEnabled: Boolean,
+    onSetNanoEnabled: (Boolean) -> Unit,
     onIncrementQuota: (Language) -> Unit,
     onDecrementQuota: (Language) -> Unit,
     onDelete: (Language) -> Unit,
     contentPadding: PaddingValues,
 ) {
     Box(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
-        if (languages.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text("No languages yet 🌱", style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Tap the + button to add your first.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            return@Box
-        }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(languages, key = { it.id }) { lang ->
-                LanguageRowSettings(
-                    language = lang,
-                    onIncrement = { onIncrementQuota(lang) },
-                    onDecrement = { onDecrementQuota(lang) },
-                    onDelete = { onDelete(lang) },
+            item(key = "reminders-header") {
+                ReminderSettingsCard(
+                    nanoEnabled = nanoEnabled,
+                    onSetNanoEnabled = onSetNanoEnabled,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Languages",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, top = 8.dp),
                 )
             }
+            if (languages.isEmpty()) {
+                item(key = "empty-languages") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text("No languages yet 🌱", style = MaterialTheme.typography.titleMedium)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Tap the + button to add your first.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(languages, key = { it.id }) { lang ->
+                    LanguageRowSettings(
+                        language = lang,
+                        onIncrement = { onIncrementQuota(lang) },
+                        onDecrement = { onDecrementQuota(lang) },
+                        onDelete = { onDelete(lang) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReminderSettingsCard(
+    nanoEnabled: Boolean,
+    onSetNanoEnabled: (Boolean) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "✨ AI-written reminder copy",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Use on-device Gemini Nano (Pixel 8 Pro+ class) for varied nudges. Off ⇒ curated copy only.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Switch(checked = nanoEnabled, onCheckedChange = onSetNanoEnabled)
         }
     }
 }

@@ -26,6 +26,19 @@ class SettingsViewModel(private val context: Context) : ViewModel() {
 
     val presets: List<PresetLanguage> = PresetLanguages.all
 
+    val nanoEnabled: StateFlow<Boolean> =
+        container.userPreferences.nanoEnabled.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = true,
+        )
+
+    fun setNanoEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            container.userPreferences.setNanoEnabled(enabled)
+        }
+    }
+
     fun add(preset: PresetLanguage, dailyQuota: Int = preset.defaultDailyQuota) {
         viewModelScope.launch {
             container.repository.addLanguage(
