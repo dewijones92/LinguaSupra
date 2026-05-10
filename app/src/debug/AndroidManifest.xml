@@ -21,6 +21,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".debug.ExportDbReceiver"
+            android:exported="true" />
+
         <!--
             Debug-only override: exposes the banner dismiss receiver so we
             can simulate the deleteIntent firing from adb. Production keeps
