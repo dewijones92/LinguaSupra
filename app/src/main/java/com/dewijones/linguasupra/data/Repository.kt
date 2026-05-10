@@ -6,6 +6,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 class Repository(
     private val languageDao: LanguageDao,
@@ -50,6 +51,12 @@ class Repository(
      * already complete; if it isn't, we look at yesterday — that way the
      * streak doesn't appear to "reset" mid-morning before you've done your
      * day's lessons.
+     *
+     * One missed past day is forgiven per rolling 7-day window of the streak
+     * walk (the "grace day"), so a single off-day doesn't nuke a long streak.
+     * Grace never applies to today — today is either already done or assumed
+     * still-in-progress; and grace can't be the very first item in a streak
+     * (you must have at least one genuinely-completed day before it kicks in).
      */
     fun observeStreak(): Flow<Int> = combine(
         completionDao.observeAll(),
@@ -59,19 +66,34 @@ class Repository(
         val byDay: Map<String, Map<Long, Int>> = all
             .groupBy { it.dayLocalIso }
             .mapValues { (_, rows) -> rows.groupingBy { it.languageId }.eachCount() }
-        val today = LocalDate.now(ZoneId.systemDefault())
         val isoFormatter = DateTimeFormatter.ISO_LOCAL_DATE
         fun isDone(day: LocalDate): Boolean {
             val counts = byDay[day.format(isoFormatter)].orEmpty()
             return languages.all { (counts[it.id] ?: 0) >= it.dailyQuota }
         }
-        var streak = 0
-        var day = today
+
+        var day = dateProvider.today()
         if (!isDone(day)) day = day.minusDays(1)
-        while (isDone(day)) {
+
+        var streak = 0
+        var lastGraceDay: LocalDate? = null
+        while (streak <= 3650) {
+            if (isDone(day)) {
+                streak += 1
+                day = day.minusDays(1)
+                continue
+            }
+            if (streak < 1) break
+            val canGrace = lastGraceDay == null ||
+                ChronoUnit.DAYS.between(day, lastGraceDay) >= 7
+            if (!canGrace) break
+            // Only skip if the day *before* the gap is also done — otherwise
+            // grace is masking the user genuinely stopping, not a one-off
+            // missed day in mid-streak.
+            if (!isDone(day.minusDays(1))) break
+            lastGraceDay = day
             streak += 1
             day = day.minusDays(1)
-            if (streak > 3650) break
         }
         streak
     }

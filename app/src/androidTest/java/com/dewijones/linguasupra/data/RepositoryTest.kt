@@ -147,6 +147,105 @@ class RepositoryTest {
         assertEquals(ids, after.sortedBy { it.displayOrder }.map { it.id })
     }
 
+    @Test
+    fun streak_zero_when_nothing_done() = runTest {
+        assertEquals(0, repository.observeStreak().first())
+    }
+
+    @Test
+    fun streak_one_when_today_complete() = runTest {
+        completeAllForDay("2026-05-10")
+        assertEquals(1, repository.observeStreak().first())
+    }
+
+    @Test
+    fun streak_counts_yesterday_when_today_in_progress() = runTest {
+        completeAllForDay("2026-05-09")
+        completeAllForDay("2026-05-08")
+        // Today (2026-05-10) intentionally empty — still in progress.
+        assertEquals(2, repository.observeStreak().first())
+    }
+
+    @Test
+    fun streak_breaks_on_two_consecutive_past_misses() = runTest {
+        // Today empty, yesterday empty, day-2 done — without today's progress
+        // the walk-back lands on the empty yesterday (grace can't be the
+        // first item) and stops at zero.
+        completeAllForDay("2026-05-08")
+        assertEquals(0, repository.observeStreak().first())
+    }
+
+    @Test
+    fun grace_forgives_one_missed_day_inside_streak() = runTest {
+        // 5 done · 1 missed · 3 done → walk back covers 9 days, one grace.
+        completeAllForDay("2026-05-10")
+        completeAllForDay("2026-05-09")
+        completeAllForDay("2026-05-08")
+        completeAllForDay("2026-05-07")
+        completeAllForDay("2026-05-06")
+        // 2026-05-05 missed
+        completeAllForDay("2026-05-04")
+        completeAllForDay("2026-05-03")
+        completeAllForDay("2026-05-02")
+        assertEquals(9, repository.observeStreak().first())
+    }
+
+    @Test
+    fun grace_only_one_per_seven_day_window() = runTest {
+        // 2 done · 1 missed (grace) · 2 done · 1 missed (no grace, 4 days
+        // since first grace) → streak should stop at the second miss.
+        completeAllForDay("2026-05-10")
+        completeAllForDay("2026-05-09")
+        // 2026-05-08 missed (grace consumed)
+        completeAllForDay("2026-05-07")
+        completeAllForDay("2026-05-06")
+        // 2026-05-05 missed (would need second grace within 4 days — denied)
+        completeAllForDay("2026-05-04")
+        assertEquals(5, repository.observeStreak().first())
+    }
+
+    @Test
+    fun grace_recharges_after_seven_clear_days() = runTest {
+        // 1 done · 1 missed (grace 1) · 7 done · 1 missed (grace 2 OK,
+        // 8 days apart) · 2 done.
+        completeAllForDay("2026-05-10")
+        // 2026-05-09 missed (grace 1)
+        completeAllForDay("2026-05-08")
+        completeAllForDay("2026-05-07")
+        completeAllForDay("2026-05-06")
+        completeAllForDay("2026-05-05")
+        completeAllForDay("2026-05-04")
+        completeAllForDay("2026-05-03")
+        completeAllForDay("2026-05-02")
+        // 2026-05-01 missed (grace 2 — 8 days from grace 1)
+        completeAllForDay("2026-04-30")
+        completeAllForDay("2026-04-29")
+        assertEquals(12, repository.observeStreak().first())
+    }
+
+    @Test
+    fun grace_cannot_be_the_first_item_in_streak() = runTest {
+        // Today empty, yesterday empty (would need grace as first walk
+        // step) → streak stays 0 even though earlier days are complete.
+        completeAllForDay("2026-05-08")
+        completeAllForDay("2026-05-07")
+        assertEquals(0, repository.observeStreak().first())
+    }
+
+    private suspend fun completeAllForDay(dayIso: String) {
+        db.languageDao().all().forEach { lang ->
+            repeat(lang.dailyQuota) {
+                db.completionDao().insert(
+                    Completion(
+                        languageId = lang.id,
+                        completedAtEpochMs = 0L,
+                        dayLocalIso = dayIso,
+                    ),
+                )
+            }
+        }
+    }
+
     private suspend fun languageByName(name: String): Language =
         db.languageDao().all().first { it.name == name }
 }
