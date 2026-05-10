@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <!--
+            Debug-only override: exposes the reminder receiver to adb shell
+            (different UID, so the production exported=false would block the
+            broadcast) and adds the DEBUG_FIRE_REMINDER action while keeping
+            the production action filter. tools:replace forces the merger to
+            take this exported value; tools:node='merge' keeps both intent
+            filters from main + debug.
+        -->
+        <receiver
+            android:name=".schedule.ReminderReceiver"
+            android:exported="true"
+            tools:node="merge"
+            tools:replace="android:exported">
+            <intent-filter>
+                <action android:name="com.dewijones.linguasupra.DEBUG_FIRE_REMINDER" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>
