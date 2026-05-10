@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -23,7 +24,6 @@ class BannerNotificationManager(
 
     suspend fun refresh() {
         Notifications.ensureChannels(context)
-        // Inline permission check (lint doesn't track through helper methods).
         if (ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS,
@@ -41,19 +41,9 @@ class BannerNotificationManager(
         NotificationManagerCompat.from(context).cancel(Notifications.BANNER_NOTIFICATION_ID)
     }
 
-    /**
-     * Build the full banner notification for a known progress list. Used by
-     * [BannerService] which already has the latest progress in scope and
-     * doesn't need to round-trip back through the repository.
-     */
     fun notificationFor(progress: List<LanguageProgress>): Notification =
         build(progress.sortedBy { it.displayOrder })
 
-    /**
-     * Synchronous placeholder used at FGS startup before Repository emits.
-     * `startForeground` requires a notification within ~10 seconds, so we
-     * build something minimal here and let [refresh] replace it.
-     */
     fun placeholderNotification(): Notification {
         Notifications.ensureChannels(context)
         return NotificationCompat.Builder(context, Notifications.BANNER_CHANNEL_ID)
@@ -72,6 +62,10 @@ class BannerNotificationManager(
 
     private fun build(progress: List<LanguageProgress>): Notification {
         val pkg = context.packageName
+        // Same rich layout for collapsed and expanded so the banner reads as
+        // "always expanded" — the platform clamps the collapsed view height,
+        // but with a small per-language list the top rows stay visible.
+        val view = buildView(pkg, progress)
         return NotificationCompat.Builder(context, Notifications.BANNER_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
@@ -82,8 +76,8 @@ class BannerNotificationManager(
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setContentTitle(context.getString(R.string.banner_title))
             .setContentText(buildSummary(progress))
-            .setCustomContentView(buildCollapsed(pkg, progress))
-            .setCustomBigContentView(buildExpanded(pkg, progress))
+            .setCustomContentView(view)
+            .setCustomBigContentView(view)
             .setContentIntent(launchAppIntent())
             .setDeleteIntent(BannerDismissReceiver.pendingIntent(context))
             .build()
@@ -98,57 +92,60 @@ class BannerNotificationManager(
             }
         }
 
-    private fun buildCollapsed(pkg: String, progress: List<LanguageProgress>): RemoteViews =
-        RemoteViews(pkg, R.layout.banner_collapsed).apply {
-            setTextViewText(R.id.banner_summary, buildSummary(progress))
-        }
-
-    private fun buildExpanded(pkg: String, progress: List<LanguageProgress>): RemoteViews {
+    private fun buildView(pkg: String, progress: List<LanguageProgress>): RemoteViews {
         val container = RemoteViews(pkg, R.layout.banner_expanded)
-        val rows = if (progress.isEmpty()) {
-            listOf(emptyRow(pkg))
-        } else {
-            progress.map { row(pkg, it) }
-        }
+        val (moodEmoji, greeting) = greetingFor(progress)
+        container.setImageViewBitmap(R.id.banner_mood, EmojiBitmapFactory.render(moodEmoji, heightPx = 96))
+        container.setTextViewText(R.id.banner_greeting, greeting)
+        val rows = if (progress.isEmpty()) listOf(emptyRow(pkg)) else progress.map { row(pkg, it) }
         rows.forEach { container.addView(R.id.banner_rows_container, it) }
         return container
     }
 
-    private fun row(pkg: String, lp: LanguageProgress): RemoteViews = bannerRow(
-        pkg = pkg,
-        emojis = "${lp.flagEmoji}${lp.vibeEmoji}",
-        label = "${lp.name} ${lp.completedToday}/${lp.dailyQuota}${if (lp.isComplete) " ✓" else ""}",
-        plusFor = lp,
-    )
+    private fun greetingFor(progress: List<LanguageProgress>): Pair<String, String> {
+        if (progress.isEmpty()) return "👋" to context.getString(R.string.banner_empty)
+        val totalCompleted = progress.sumOf { it.completedToday }
+        val totalQuota = progress.sumOf { it.dailyQuota }.coerceAtLeast(1)
+        val ratio = totalCompleted.toFloat() / totalQuota
+        return when {
+            progress.all { it.isComplete } -> "🎉" to "Smashed it! All done for today."
+            ratio >= 0.66f -> "🔥" to "Nearly there — keep going!"
+            ratio >= 0.33f -> "💪" to "Strong start. Don't stop now."
+            totalCompleted > 0 -> "✨" to "You're rolling. Keep at it."
+            else -> "👋" to "Today's plan, ready when you are."
+        }
+    }
 
-    private fun emptyRow(pkg: String): RemoteViews = bannerRow(
-        pkg = pkg,
-        emojis = "👋",
-        label = context.getString(R.string.banner_empty),
-        plusFor = null,
-    )
+    private fun row(pkg: String, lp: LanguageProgress): RemoteViews =
+        RemoteViews(pkg, R.layout.banner_row).apply {
+            setImageViewBitmap(R.id.row_vibe, EmojiBitmapFactory.render("${lp.flagEmoji}${lp.vibeEmoji}", heightPx = 132))
+            setInt(R.id.row_accent, "setBackgroundColor", BannerAccents.colorFor(lp))
+            setTextViewText(R.id.row_name, "${lp.name}${if (lp.isComplete) "  ✓" else ""}")
+            val percent = if (lp.dailyQuota > 0) {
+                ((lp.completedToday.toFloat() / lp.dailyQuota) * 100).toInt().coerceIn(0, 100)
+            } else 0
+            setProgressBar(R.id.row_progress, 100, percent, false)
+            setTextViewText(R.id.row_count, "${lp.completedToday}/${lp.dailyQuota}")
 
-    private fun bannerRow(
-        pkg: String,
-        emojis: String,
-        label: String,
-        plusFor: LanguageProgress?,
-    ): RemoteViews = RemoteViews(pkg, R.layout.banner_row).apply {
-        setImageViewBitmap(R.id.row_vibe, EmojiBitmapFactory.render(emojis))
-        setTextViewText(R.id.row_text, label)
-        if (plusFor != null) {
             setOnClickPendingIntent(
                 R.id.row_plus,
-                CompletionReceiver.pendingIntent(context, plusFor.languageId),
+                CompletionReceiver.pendingIntent(context, lp.languageId),
             )
             setContentDescription(
                 R.id.row_plus,
-                context.getString(R.string.banner_plus_one_cd_for, plusFor.name),
+                context.getString(R.string.banner_plus_one_cd_for, lp.name),
             )
-        } else {
-            setViewVisibility(R.id.row_plus, android.view.View.GONE)
         }
-    }
+
+    private fun emptyRow(pkg: String): RemoteViews =
+        RemoteViews(pkg, R.layout.banner_row).apply {
+            setImageViewBitmap(R.id.row_vibe, EmojiBitmapFactory.render("👋", heightPx = 132))
+            setInt(R.id.row_accent, "setBackgroundColor", android.graphics.Color.parseColor("#FF7043"))
+            setTextViewText(R.id.row_name, context.getString(R.string.banner_empty))
+            setTextViewText(R.id.row_count, "")
+            setProgressBar(R.id.row_progress, 100, 0, false)
+            setViewVisibility(R.id.row_plus, View.GONE)
+        }
 
     private fun launchAppIntent(): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
