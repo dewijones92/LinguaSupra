@@ -97,7 +97,7 @@ fun HomeScreen(
     val selfiePath by viewModel.selfiePath.collectAsStateWithLifecycle()
     val onboarding by viewModel.onboardingState.collectAsStateWithLifecycle()
     val showCelebration by viewModel.showCelebration.collectAsStateWithLifecycle()
-    val streak by viewModel.streak.collectAsStateWithLifecycle()
+    val streakStatus by viewModel.streakStatus.collectAsStateWithLifecycle()
 
     val retakeLauncher = rememberSelfieLauncher(prefix = "retake") { path ->
         viewModel.setSelfiePath(path)
@@ -128,7 +128,7 @@ fun HomeScreen(
             progress = progress,
             userName = userName,
             selfiePath = selfiePath,
-            streak = streak,
+            streakStatus = streakStatus,
             onPlusOne = viewModel::recordCompletion,
             onAvatarTap = retakeLauncher,
             contentPadding = padding,
@@ -300,7 +300,7 @@ private fun HomeContent(
     progress: List<LanguageProgress>,
     userName: String?,
     selfiePath: String?,
-    streak: Int,
+    streakStatus: com.dewijones.linguasupra.data.StreakStatus,
     onPlusOne: (Long) -> Unit,
     onAvatarTap: () -> Unit,
     contentPadding: PaddingValues,
@@ -317,8 +317,8 @@ private fun HomeContent(
                     onAvatarTap = onAvatarTap,
                 )
             }
-            if (streak > 0) {
-                item { StreakBadge(streak = streak) }
+            if (streakStatus.streak > 0) {
+                item { StreakBadge(status = streakStatus) }
             }
             if (progress.isEmpty()) {
                 item { EmptyHomeCard() }
@@ -333,27 +333,45 @@ private fun HomeContent(
 }
 
 @Composable
-private fun StreakBadge(streak: Int) {
-    val flames = "🔥".repeat(streak.coerceAtMost(7))
+private fun StreakBadge(status: com.dewijones.linguasupra.data.StreakStatus) {
+    val flames = "🔥".repeat(status.streak.coerceAtMost(7))
+    val subtitle = when {
+        status.graceUsed && status.daysUntilGraceRecharge > 0 ->
+            "🛟 1 grace day used · recharges in ${status.daysUntilGraceRecharge} ${if (status.daysUntilGraceRecharge == 1) "day" else "days"}"
+        status.graceUsed && status.daysUntilGraceRecharge == 0 ->
+            "🛟 Grace day available again"
+        status.streak >= 1 -> "🛟 You can skip 1 day this week without breaking it"
+        else -> null
+    }
     androidx.compose.material3.Card(
         colors = androidx.compose.material3.CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
         ),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = flames,
-                style = MaterialTheme.typography.headlineSmall,
-            )
-            Text(
-                text = if (streak == 1) "1 day streak" else "$streak day streak",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = flames,
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Text(
+                    text = if (status.streak == 1) "1 day streak" else "${status.streak} day streak",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            if (subtitle != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+            }
         }
     }
 }

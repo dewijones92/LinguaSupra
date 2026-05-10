@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dewijones.linguasupra.data.AppContainer
 import com.dewijones.linguasupra.data.LanguageProgress
+import com.dewijones.linguasupra.data.StreakStatus
 import com.dewijones.linguasupra.notify.BannerNotificationManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,11 +32,12 @@ class HomeViewModel(private val context: Context) : ViewModel() {
             initialValue = emptyList(),
         )
 
-    val streak: StateFlow<Int> = container.repository.observeStreak().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = 0,
-    )
+    val streakStatus: StateFlow<StreakStatus> =
+        container.repository.observeStreakStatus().stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = StreakStatus(streak = 0, graceUsed = false, daysUntilGraceRecharge = 0),
+        )
 
     val userName: StateFlow<String?> = prefs.userName.stateIn(
         scope = viewModelScope,
