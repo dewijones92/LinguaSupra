@@ -30,6 +30,14 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".notify.CompletionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.dewijones.linguasupra.ACTION_COMPLETE_LANGUAGE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>
