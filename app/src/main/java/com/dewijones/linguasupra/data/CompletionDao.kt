@@ -44,6 +44,9 @@ interface CompletionDao {
     @Query("DELETE FROM completions WHERE id = :id")
     suspend fun delete(id: Long)
 
+    @Query("DELETE FROM completions WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>): Int
+
     @Query(
         """
         DELETE FROM completions WHERE id = (

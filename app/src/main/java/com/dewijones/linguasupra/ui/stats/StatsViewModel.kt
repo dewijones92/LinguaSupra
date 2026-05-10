@@ -8,9 +8,12 @@ import com.dewijones.linguasupra.data.AppContainer
 import com.dewijones.linguasupra.data.CompletionWithLanguage
 import com.dewijones.linguasupra.data.DailySeriesPoint
 import com.dewijones.linguasupra.notify.BannerNotificationManager
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 
@@ -37,6 +40,29 @@ class StatsViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch {
             repository.deleteCompletion(id)
             BannerNotificationManager(context, repository).refresh()
+        }
+    }
+
+    private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
+
+    fun toggleSelected(id: Long) {
+        _selectedIds.update { current ->
+            if (id in current) current - id else current + id
+        }
+    }
+
+    fun clearSelection() {
+        _selectedIds.value = emptySet()
+    }
+
+    fun deleteSelected() {
+        val ids = _selectedIds.value
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            repository.deleteCompletions(ids)
+            BannerNotificationManager(context, repository).refresh()
+            _selectedIds.value = emptySet()
         }
     }
 
