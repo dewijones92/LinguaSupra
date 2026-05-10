@@ -50,6 +50,14 @@
         </receiver>
 
         <receiver
+            android:name=".notify.UndoCompletionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.dewijones.linguasupra.ACTION_UNDO_LAST" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".notify.BannerDismissReceiver"
             android:exported="false">
             <intent-filter>

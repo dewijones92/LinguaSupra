@@ -42,6 +42,18 @@ interface CompletionDao {
 
     @Query("DELETE FROM completions WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query(
+        """
+        DELETE FROM completions WHERE id = (
+            SELECT id FROM completions
+            WHERE language_id = :languageId AND day_local_iso = :dayIso
+            ORDER BY completed_at_epoch_ms DESC, id DESC
+            LIMIT 1
+        )
+        """,
+    )
+    suspend fun deleteMostRecentForDay(languageId: Long, dayIso: String): Int
 }
 
 data class DayCount(val languageId: Long, val count: Int)

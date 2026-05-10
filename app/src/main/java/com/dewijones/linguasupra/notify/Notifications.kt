@@ -15,6 +15,11 @@ object Notifications {
     const val REMINDER_CHANNEL_NAME = "Reminders"
     const val REMINDER_CHANNEL_DESC = "Gentle nudges to keep your streak going."
 
+    const val UNDO_CHANNEL_ID = "lingua_undo"
+    const val UNDO_CHANNEL_NAME = "Undo last tap"
+    const val UNDO_CHANNEL_DESC = "Brief confirmation after each +1 with an undo action."
+    const val UNDO_NOTIFICATION_ID = 1002
+
     fun ensureChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         if (nm.getNotificationChannel(BANNER_CHANNEL_ID) == null) {
@@ -33,6 +38,16 @@ object Notifications {
                 NotificationChannel(REMINDER_CHANNEL_ID, REMINDER_CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT).apply {
                     description = REMINDER_CHANNEL_DESC
                     setShowBadge(true)
+                },
+            )
+        }
+        if (nm.getNotificationChannel(UNDO_CHANNEL_ID) == null) {
+            nm.createNotificationChannel(
+                NotificationChannel(UNDO_CHANNEL_ID, UNDO_CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW).apply {
+                    description = UNDO_CHANNEL_DESC
+                    setShowBadge(false)
+                    setSound(null, null)
+                    enableVibration(false)
                 },
             )
         }
