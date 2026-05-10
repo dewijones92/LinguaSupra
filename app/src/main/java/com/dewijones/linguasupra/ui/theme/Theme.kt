@@ -68,5 +68,5 @@ fun LinguaSupraTheme(
         darkTheme -> DarkFallback
         else -> LightFallback
     }
-    MaterialTheme(colorScheme = scheme, content = content)
+    MaterialTheme(colorScheme = scheme, typography = LinguaTypography, content = content)
 }

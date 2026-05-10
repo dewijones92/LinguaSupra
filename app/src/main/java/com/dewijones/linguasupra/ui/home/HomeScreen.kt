@@ -1,6 +1,8 @@
 package com.dewijones.linguasupra.ui.home
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,16 +33,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones.linguasupra.data.LanguageProgress
+import com.dewijones.linguasupra.ui.components.EmojiConfetti
 import com.dewijones.linguasupra.ui.components.LanguageProgressRing
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -111,49 +118,79 @@ private fun Greeting() {
 
 @Composable
 private fun LanguageRow(progress: LanguageProgress, onPlusOne: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    val haptic = LocalHapticFeedback.current
+    var confettiTrigger by remember { mutableIntStateOf(0) }
+    val cardScaleTarget = if (progress.isComplete) 1.02f else 1f
+    val cardScale by animateFloatAsState(
+        targetValue = cardScaleTarget,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "completeCardScale",
+    )
+    val buttonScaleTarget = remember(confettiTrigger) { 1.15f }
+    val buttonScale by animateFloatAsState(
+        targetValue = if (confettiTrigger == 0) 1f else buttonScaleTarget,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
+        label = "buttonPulse",
+    )
+    Box {
+        Card(
+            modifier = Modifier.fillMaxWidth().scale(cardScale),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (progress.isComplete) MaterialTheme.colorScheme.tertiaryContainer
+                else MaterialTheme.colorScheme.surfaceVariant,
+            ),
         ) {
-            LanguageProgressRing(
-                fraction = progress.progressFraction,
-                emoji = progress.vibeEmoji,
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "${progress.flagEmoji} ${progress.name}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LanguageProgressRing(
+                    fraction = progress.progressFraction,
+                    emoji = progress.vibeEmoji,
                 )
-                Text(
-                    text = "${progress.completedToday} / ${progress.dailyQuota}" +
-                        if (progress.isComplete) "  ✓" else "",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (progress.isComplete && progress.motivationPhrase != null) {
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = progress.motivationPhrase,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium,
+                        text = "${progress.flagEmoji} ${progress.name}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
                     )
+                    Text(
+                        text = "${progress.completedToday} / ${progress.dailyQuota}" +
+                            if (progress.isComplete) "  ✓" else "",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (progress.isComplete && progress.motivationPhrase != null) {
+                        Text(
+                            text = progress.motivationPhrase,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                FilledTonalIconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        confettiTrigger += 1
+                        onPlusOne()
+                    },
+                    modifier = Modifier.size(56.dp).scale(buttonScale),
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Mark one ${progress.name} lesson done")
                 }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            FilledTonalIconButton(
-                onClick = onPlusOne,
-                modifier = Modifier.size(56.dp),
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Mark one ${progress.name} lesson done")
-            }
         }
+        // Burst originates near the centre of the card; particles fly outward
+        EmojiConfetti(
+            trigger = confettiTrigger,
+            emoji = progress.vibeEmoji,
+            originX = 200.dp,
+            originY = 40.dp,
+        )
     }
 }
 
