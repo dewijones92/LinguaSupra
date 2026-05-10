@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build + tag + GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compute version
+        id: version
+        run: |
+          # versionCode is monotonically increasing across all release runs
+          CODE="${{ github.run_number }}"
+          # versionName is 0.1.<run_number> for now; bump the minor when there's
+          # a real reason (breaking schema, big feature drop, ESFA cycle).
+          NAME="0.1.${CODE}"
+          TAG="v${NAME}"
+          echo "code=${CODE}"   >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}"   >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}"     >> "$GITHUB_OUTPUT"
+
+      - name: Build debug APK
+        run: |
+          ./gradlew :app:assembleDebug \
+            -PreleaseVersionCode=${{ steps.version.outputs.code }} \
+            -PreleaseVersionName=${{ steps.version.outputs.name }} \
+            --no-daemon --stacktrace
+
+      - name: Locate APK
+        id: apk
+        run: |
+          APK="$(find app/build/outputs/apk/debug -maxdepth 2 -name '*.apk' -print -quit)"
+          if [ -z "$APK" ]; then
+            echo "::error::No APK produced at app/build/outputs/apk/debug"
+            exit 1
+          fi
+          OUT="LinguaSupra-${{ steps.version.outputs.tag }}.apk"
+          cp "$APK" "$OUT"
+          echo "path=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          PREV_TAG="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
+          {
+            echo "## What's new"
+            echo
+            if [ -n "$PREV_TAG" ]; then
+              echo "Changes since \`$PREV_TAG\`:"
+              echo
+              git log --pretty=format:'- %s' "${PREV_TAG}..HEAD"
+            else
+              echo "Initial release."
+              echo
+              git log --pretty=format:'- %s' -50
+            fi
+            echo
+            echo
+            echo "---"
+            echo
+            echo "Sideload-friendly debug-signed APK. Signature may differ run-to-run; if installs refuse with INSTALL_FAILED_UPDATE_INCOMPATIBLE, uninstall first (data is preserved by Android Auto Backup)."
+          } > release_notes.md
+          echo "path=release_notes.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.path }}
+          files: ${{ steps.apk.outputs.path }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
