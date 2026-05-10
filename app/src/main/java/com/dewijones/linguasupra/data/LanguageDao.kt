@@ -21,6 +21,9 @@ interface LanguageDao {
     @Query("SELECT * FROM languages WHERE id = :id")
     suspend fun byId(id: Long): Language?
 
+    @Query("SELECT * FROM languages WHERE active = 1 AND LOWER(name) = LOWER(:name) LIMIT 1")
+    suspend fun byNameActive(name: String): Language?
+
     @Query("SELECT COALESCE(MAX(display_order), -1) FROM languages")
     suspend fun maxDisplayOrder(): Int
 

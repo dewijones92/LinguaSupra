@@ -65,6 +65,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- Exported so Tasker, Pixel Routines, and the Shortcuts app can
+             trigger a "+1 <language>" via broadcast. Side effects match
+             tapping the banner: DB row + banner refresh + undo prompt. -->
+        <receiver
+            android:name=".notify.AutomationReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.dewijones.linguasupra.AUTOMATION_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".schedule.ReminderReceiver"
             android:exported="false">
