@@ -62,11 +62,15 @@ class ReminderReceiver : BroadcastReceiver() {
                 outstanding = outstanding,
                 dayOfYear = dayOfYear,
             )
-            // Try Gemini Nano for the body; fall back to the curated tail.
-            // Title stays curated either way — the LLM-generated line lives
-            // inside the BigText body where it has room to breathe.
+            val nanoEnabled = container.userPreferences.nanoEnabled.first()
+            // Try Gemini Nano for the body when the user has it on; fall back
+            // to the curated tail. Title stays curated either way — the
+            // LLM-generated line lives inside the BigText body where it has
+            // room to breathe.
             val message = curated?.let { c ->
-                val nanoLine = nanoCopywriter(context).generate(slot, name, outstanding)
+                val nanoLine = if (nanoEnabled) {
+                    nanoCopywriter(context).generate(slot, name, outstanding)
+                } else null
                 if (nanoLine != null) {
                     val list = c.body.lineSequence().firstOrNull().orEmpty()
                     c.copy(body = if (list.isNotBlank()) "$list\n$nanoLine" else nanoLine)

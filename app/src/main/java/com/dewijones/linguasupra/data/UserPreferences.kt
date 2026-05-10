@@ -27,6 +27,10 @@ interface UserPreferences {
     /** ISO date the user last saw the daily-quota celebration; used for fire-once-per-day. */
     val lastCelebrationIso: Flow<String?>
     suspend fun setLastCelebrationIso(iso: String)
+
+    /** When true (default), reminders try Gemini Nano for varied copy and fall back to curated. */
+    val nanoEnabled: Flow<Boolean>
+    suspend fun setNanoEnabled(enabled: Boolean)
 }
 
 private val Context.userPrefsStore by preferencesDataStore(name = "user_prefs")
@@ -70,11 +74,20 @@ class DataStoreUserPreferences(private val context: Context) : UserPreferences {
         context.userPrefsStore.edit { it[LAST_CELEBRATION_KEY] = iso }
     }
 
+    override val nanoEnabled: Flow<Boolean> = context.userPrefsStore.data.map { prefs ->
+        prefs[NANO_ENABLED_KEY] ?: true
+    }
+
+    override suspend fun setNanoEnabled(enabled: Boolean) {
+        context.userPrefsStore.edit { it[NANO_ENABLED_KEY] = enabled }
+    }
+
     companion object {
         private val NAME_KEY = stringPreferencesKey("user_name")
         private val SELFIE_KEY = stringPreferencesKey("selfie_path")
         private val ONBOARDING_COMPLETE_KEY = booleanPreferencesKey("onboarding_complete")
         private val LAST_CELEBRATION_KEY = stringPreferencesKey("last_celebration_iso")
+        private val NANO_ENABLED_KEY = booleanPreferencesKey("nano_enabled")
     }
 }
 
@@ -84,11 +97,13 @@ class FakeUserPreferences(
     initialSelfiePath: String? = null,
     initialOnboardingComplete: Boolean = false,
     initialLastCelebrationIso: String? = null,
+    initialNanoEnabled: Boolean = true,
 ) : UserPreferences {
     private val _name = MutableStateFlow(initialName)
     private val _selfie = MutableStateFlow(initialSelfiePath)
     private val _onboardingComplete = MutableStateFlow(initialOnboardingComplete)
     private val _lastCelebration = MutableStateFlow(initialLastCelebrationIso)
+    private val _nanoEnabled = MutableStateFlow(initialNanoEnabled)
 
     override val userName: Flow<String?> = _name.asStateFlow()
     override suspend fun setUserName(name: String) {
@@ -104,4 +119,7 @@ class FakeUserPreferences(
 
     override val lastCelebrationIso: Flow<String?> = _lastCelebration.asStateFlow()
     override suspend fun setLastCelebrationIso(iso: String) { _lastCelebration.value = iso }
+
+    override val nanoEnabled: Flow<Boolean> = _nanoEnabled.asStateFlow()
+    override suspend fun setNanoEnabled(enabled: Boolean) { _nanoEnabled.value = enabled }
 }
