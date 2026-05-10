@@ -61,6 +61,10 @@ android {
     sourceSets {
         getByName("androidTest") {
             assets.directories.add(layout.projectDirectory.dir("schemas").asFile.absolutePath)
+            kotlin.srcDir("src/sharedTest/java")
+        }
+        getByName("test") {
+            kotlin.srcDir("src/sharedTest/java")
         }
     }
 }
