@@ -13,6 +13,9 @@ interface LanguageDao {
     fun observeActive(): Flow<List<Language>>
 
     @Query("SELECT * FROM languages ORDER BY display_order, id")
+    fun observeAllIncludingInactive(): Flow<List<Language>>
+
+    @Query("SELECT * FROM languages ORDER BY display_order, id")
     suspend fun all(): List<Language>
 
     @Query("SELECT * FROM languages WHERE id = :id")

@@ -2,6 +2,10 @@ package com.dewijones.linguasupra.data
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class Repository(
     private val languageDao: LanguageDao,
@@ -39,6 +43,70 @@ class Repository(
      */
     suspend fun undoLastCompletion(languageId: Long): Boolean =
         completionDao.deleteMostRecentForDay(languageId, dateProvider.todayIso()) > 0
+
+    /** All completions newest-first, joined with language for display. */
+    fun observeAllCompletionsWithLanguage(): Flow<List<CompletionWithLanguage>> =
+        combine(completionDao.observeAll(), languageDao.observeAllIncludingInactive()) { rows, languages ->
+            val byId = languages.associateBy { it.id }
+            rows.mapNotNull { c ->
+                byId[c.languageId]?.let { lang -> CompletionWithLanguage(c, lang) }
+            }
+        }
+
+    /**
+     * Per-day per-language completion counts for the trailing [days] days
+     * (inclusive of today). Days with zero rows for a language are filled
+     * in as zero so the chart x-axis is dense.
+     */
+    fun observeDailySeries(days: Int): Flow<List<DailySeriesPoint>> {
+        val startDay = LocalDate.now(ZoneId.systemDefault()).minusDays(days - 1L)
+        return combine(
+            completionDao.observeCountsSince(startDay.format(DateTimeFormatter.ISO_LOCAL_DATE)),
+            languageDao.observeAllIncludingInactive(),
+        ) { counts, languages ->
+            val countByDayLang = counts.associateBy { it.dayIso to it.languageId }
+            val dayList = (0 until days).map { startDay.plusDays(it.toLong()) }
+            dayList.flatMap { day ->
+                val dayIso = day.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                languages.map { lang ->
+                    DailySeriesPoint(
+                        day = day,
+                        languageId = lang.id,
+                        languageName = lang.name,
+                        count = countByDayLang[dayIso to lang.id]?.count ?: 0,
+                    )
+                }
+            }
+        }
+    }
+
+    suspend fun deleteCompletion(id: Long) = completionDao.delete(id)
+
+    /** Update a completion's timestamp (also recomputes day_local_iso). */
+    suspend fun updateCompletionTime(id: Long, newInstant: Instant) {
+        val row = completionDao.byId(id) ?: return
+        completionDao.update(
+            row.copy(
+                completedAtEpochMs = newInstant.toEpochMilli(),
+                dayLocalIso = newInstant.atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .format(DateTimeFormatter.ISO_LOCAL_DATE),
+            ),
+        )
+    }
+
+    /** Add a manual completion at an arbitrary instant. */
+    suspend fun addManualCompletion(languageId: Long, instant: Instant): Long {
+        return completionDao.insert(
+            Completion(
+                languageId = languageId,
+                completedAtEpochMs = instant.toEpochMilli(),
+                dayLocalIso = instant.atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .format(DateTimeFormatter.ISO_LOCAL_DATE),
+            ),
+        )
+    }
 
     suspend fun addLanguage(
         name: String,

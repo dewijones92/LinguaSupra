@@ -3,6 +3,12 @@ package com.dewijones.linguasupra.notify
 import android.graphics.Color
 import com.dewijones.linguasupra.data.LanguageProgress
 
+// Public alias so other features (Stats screen, HomeScreen) can keep
+// per-language colour identity consistent without coupling to this object.
+object LanguagePalette {
+    fun colorForName(name: String): Int = BannerAccents.colorForName(name)
+}
+
 /**
  * Per-language accent colour for the banner row stripe. Hand-picked for the
  * defaults (Welsh red, Mandarin imperial gold, Latin imperial purple); other
@@ -34,9 +40,11 @@ internal object BannerAccents {
         "korean" to Color.parseColor("#003478"),
     )
 
-    fun colorFor(progress: LanguageProgress): Int {
-        pinned[progress.name.lowercase()]?.let { return it }
-        val idx = (progress.name.hashCode().rem(palette.size).let { if (it < 0) it + palette.size else it })
+    fun colorFor(progress: LanguageProgress): Int = colorForName(progress.name)
+
+    fun colorForName(name: String): Int {
+        pinned[name.lowercase()]?.let { return it }
+        val idx = (name.hashCode().rem(palette.size).let { if (it < 0) it + palette.size else it })
         return palette[idx]
     }
 }
