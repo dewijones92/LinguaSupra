@@ -2,6 +2,7 @@ package com.dewijones.linguasupra.data
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -46,23 +47,27 @@ class Repository(
         completionDao.deleteMostRecentForDay(languageId, dateProvider.todayIso()) > 0
 
     /**
-     * Current streak: consecutive days, ending no later than today, on which
-     * every active language hit its daily quota. Today only counts if it's
-     * already complete; if it isn't, we look at yesterday — that way the
-     * streak doesn't appear to "reset" mid-morning before you've done your
-     * day's lessons.
+     * Current streak status: consecutive days (with up to one rolling-7-day
+     * grace skip) on which every active language hit its daily quota.
      *
-     * One missed past day is forgiven per rolling 7-day window of the streak
-     * walk (the "grace day"), so a single off-day doesn't nuke a long streak.
-     * Grace never applies to today — today is either already done or assumed
-     * still-in-progress; and grace can't be the very first item in a streak
-     * (you must have at least one genuinely-completed day before it kicks in).
+     * Grace day rules:
+     * - Today never counts as a grace; if today's incomplete we walk back
+     *   to yesterday before counting.
+     * - Grace can't be the first item in a streak (need at least one
+     *   genuinely-completed day before it kicks in).
+     * - The day before a graced gap must also be done — otherwise grace is
+     *   papering over the user genuinely stopping.
+     * - At most one grace per rolling 7-day window of the streak walk.
+     *
+     * `daysUntilGraceRecharge` is what the UI surfaces. 0 means a grace is
+     * available right now; otherwise it's the number of days until the
+     * 7-day cool-down on the most recently used grace expires.
      */
-    fun observeStreak(): Flow<Int> = combine(
+    fun observeStreakStatus(): Flow<StreakStatus> = combine(
         completionDao.observeAll(),
         languageDao.observeActive(),
     ) { all, languages ->
-        if (languages.isEmpty()) return@combine 0
+        if (languages.isEmpty()) return@combine StreakStatus(0, false, 0)
         val byDay: Map<String, Map<Long, Int>> = all
             .groupBy { it.dayLocalIso }
             .mapValues { (_, rows) -> rows.groupingBy { it.languageId }.eachCount() }
@@ -72,7 +77,8 @@ class Repository(
             return languages.all { (counts[it.id] ?: 0) >= it.dailyQuota }
         }
 
-        var day = dateProvider.today()
+        val today = dateProvider.today()
+        var day = today
         if (!isDone(day)) day = day.minusDays(1)
 
         var streak = 0
@@ -87,16 +93,24 @@ class Repository(
             val canGrace = lastGraceDay == null ||
                 ChronoUnit.DAYS.between(day, lastGraceDay) >= 7
             if (!canGrace) break
-            // Only skip if the day *before* the gap is also done — otherwise
-            // grace is masking the user genuinely stopping, not a one-off
-            // missed day in mid-streak.
             if (!isDone(day.minusDays(1))) break
             lastGraceDay = day
             streak += 1
             day = day.minusDays(1)
         }
-        streak
+        val recharge = lastGraceDay?.let {
+            val sinceUsed = ChronoUnit.DAYS.between(it, today).toInt()
+            (7 - sinceUsed).coerceAtLeast(0)
+        } ?: 0
+        StreakStatus(
+            streak = streak,
+            graceUsed = lastGraceDay != null,
+            daysUntilGraceRecharge = recharge,
+        )
     }
+
+    /** Convenience: just the streak count, derived from [observeStreakStatus]. */
+    fun observeStreak(): Flow<Int> = observeStreakStatus().map { it.streak }
 
     /** All completions newest-first, joined with language for display. */
     fun observeAllCompletionsWithLanguage(): Flow<List<CompletionWithLanguage>> =

@@ -232,6 +232,56 @@ class RepositoryTest {
         assertEquals(0, repository.observeStreak().first())
     }
 
+    @Test
+    fun streak_status_reports_grace_unused_for_clean_streak() = runTest {
+        completeAllForDay("2026-05-10")
+        completeAllForDay("2026-05-09")
+        completeAllForDay("2026-05-08")
+        val status = repository.observeStreakStatus().first()
+        assertEquals(3, status.streak)
+        assertFalse(status.graceUsed)
+        // Clean streak: grace is fresh, recharge counter is 0.
+        assertEquals(0, status.daysUntilGraceRecharge)
+    }
+
+    @Test
+    fun streak_status_reports_grace_used_with_recharge_window() = runTest {
+        // 3 done · 1 missed (grace 3 days ago, on 2026-05-07) · 2 done →
+        // streak walks 6 days. Rolling 7-day cool-down on the grace means
+        // 4 more days before another grace is allowed.
+        completeAllForDay("2026-05-10")
+        completeAllForDay("2026-05-09")
+        completeAllForDay("2026-05-08")
+        // 2026-05-07 missed → grace
+        completeAllForDay("2026-05-06")
+        completeAllForDay("2026-05-05")
+        val status = repository.observeStreakStatus().first()
+        assertEquals(6, status.streak)
+        assertTrue(status.graceUsed)
+        assertEquals(4, status.daysUntilGraceRecharge)
+    }
+
+    @Test
+    fun streak_status_recharge_zero_when_grace_used_seven_days_ago() = runTest {
+        // 7 done · 1 missed (grace 7 days ago, on 2026-05-03) · 1 done →
+        // streak walks 9 days. The grace's 7-day cool-down has already
+        // expired by today, so recharge counter is 0 even though grace
+        // is still flagged as used inside the streak walk.
+        completeAllForDay("2026-05-10")
+        completeAllForDay("2026-05-09")
+        completeAllForDay("2026-05-08")
+        completeAllForDay("2026-05-07")
+        completeAllForDay("2026-05-06")
+        completeAllForDay("2026-05-05")
+        completeAllForDay("2026-05-04")
+        // 2026-05-03 missed → grace
+        completeAllForDay("2026-05-02")
+        val status = repository.observeStreakStatus().first()
+        assertEquals(9, status.streak)
+        assertTrue(status.graceUsed)
+        assertEquals(0, status.daysUntilGraceRecharge)
+    }
+
     private suspend fun completeAllForDay(dayIso: String) {
         db.languageDao().all().forEach { lang ->
             repeat(lang.dailyQuota) {
