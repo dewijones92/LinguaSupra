@@ -57,6 +57,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones.linguasupra.data.LanguageProgress
 import com.dewijones.linguasupra.ui.components.EmojiConfetti
 import com.dewijones.linguasupra.ui.components.LanguageProgressRing
+import com.dewijones.linguasupra.ui.theme.DisplayBagel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -75,7 +76,12 @@ fun HomeScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("LinguaSupra ✨", fontWeight = FontWeight.SemiBold) },
+                title = {
+                    Text(
+                        "LinguaSupra ✨",
+                        style = DisplayBagel.copy(fontSize = MaterialTheme.typography.titleLarge.fontSize),
+                    )
+                },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "Settings")
@@ -161,7 +167,8 @@ private fun Greeting(userName: String?) {
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE d MMMM"))
     val greeting = if (userName.isNullOrBlank()) "Hi 👋" else "Hi $userName 👋"
     Column(modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)) {
-        Text(greeting, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+        Text(greeting, style = MaterialTheme.typography.displaySmall)
+        Spacer(modifier = Modifier.height(4.dp))
         Text(today, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

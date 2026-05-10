@@ -10,7 +10,7 @@ import com.dewijones.linguasupra.R
 
 /**
  * Fredoka — a friendly rounded sans, bundled as a variable TTF (weight + width axes).
- * OFL-licensed. Compose synthesises the requested weights from the variable font.
+ * Used for body, labels, and most titles. OFL-licensed.
  */
 private val Fredoka = FontFamily(
     Font(R.font.fredoka, weight = FontWeight.Normal),
@@ -19,13 +19,26 @@ private val Fredoka = FontFamily(
     Font(R.font.fredoka, weight = FontWeight.Bold),
 )
 
+/**
+ * Bagel Fat One — chunky, sticker-book display face. Used for the app title and
+ * the daily greeting only, so headlines feel bold without overpowering the rest.
+ * OFL-licensed.
+ */
+private val BagelFatOne = FontFamily(Font(R.font.bagel_fat_one, weight = FontWeight.Normal))
+
+/**
+ * Display headlines should be available outside Typography too (for the app title,
+ * which uses titleLarge by default in TopAppBar but wants the bigger display face).
+ */
+internal val DisplayBagel = TextStyle(fontFamily = BagelFatOne, letterSpacing = 0.sp)
+
 internal val LinguaTypography: Typography = Typography().run {
     Typography(
-        displayLarge = displayLarge.copy(fontFamily = Fredoka, fontWeight = FontWeight.Bold),
-        displayMedium = displayMedium.copy(fontFamily = Fredoka, fontWeight = FontWeight.Bold),
-        displaySmall = displaySmall.copy(fontFamily = Fredoka, fontWeight = FontWeight.SemiBold),
-        headlineLarge = headlineLarge.copy(fontFamily = Fredoka, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
-        headlineMedium = headlineMedium.copy(fontFamily = Fredoka, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
+        displayLarge = displayLarge.copy(fontFamily = BagelFatOne, letterSpacing = 0.sp),
+        displayMedium = displayMedium.copy(fontFamily = BagelFatOne, letterSpacing = 0.sp),
+        displaySmall = displaySmall.copy(fontFamily = BagelFatOne, letterSpacing = 0.sp),
+        headlineLarge = headlineLarge.copy(fontFamily = BagelFatOne, letterSpacing = 0.sp),
+        headlineMedium = headlineMedium.copy(fontFamily = BagelFatOne, letterSpacing = 0.sp),
         headlineSmall = headlineSmall.copy(fontFamily = Fredoka, fontWeight = FontWeight.SemiBold),
         titleLarge = titleLarge.copy(fontFamily = Fredoka, fontWeight = FontWeight.SemiBold),
         titleMedium = titleMedium.copy(fontFamily = Fredoka, fontWeight = FontWeight.Medium),
