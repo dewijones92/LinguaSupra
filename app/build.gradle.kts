@@ -14,8 +14,11 @@ android {
         applicationId = "com.dewijones.linguasupra"
         minSdk = 33
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI overrides via -PreleaseVersionCode / -PreleaseVersionName so each
+        // tagged build has a unique, monotonically increasing versionCode.
+        versionCode = providers.gradleProperty("releaseVersionCode")
+            .map { it.toInt() }.getOrElse(1)
+        versionName = providers.gradleProperty("releaseVersionName").orNull ?: "0.1.0-dev"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
