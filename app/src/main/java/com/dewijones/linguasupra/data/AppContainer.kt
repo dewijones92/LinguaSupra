@@ -9,6 +9,7 @@ import android.content.Context
 class AppContainer private constructor(
     val database: AppDatabase,
     val dateProvider: DateProvider,
+    val userPreferences: UserPreferences,
 ) {
     val repository: Repository = Repository(
         languageDao = database.languageDao(),
@@ -21,14 +22,20 @@ class AppContainer private constructor(
         private var instance: AppContainer? = null
 
         fun get(context: Context): AppContainer = instance ?: synchronized(this) {
+            val app = context.applicationContext
             instance ?: AppContainer(
-                database = AppDatabase.build(context.applicationContext),
+                database = AppDatabase.build(app),
                 dateProvider = DateProvider(),
+                userPreferences = DataStoreUserPreferences(app),
             ).also { instance = it }
         }
 
-        fun overrideForTest(database: AppDatabase, dateProvider: DateProvider) {
-            instance = AppContainer(database, dateProvider)
+        fun overrideForTest(
+            database: AppDatabase,
+            dateProvider: DateProvider,
+            userPreferences: UserPreferences = FakeUserPreferences(),
+        ) {
+            instance = AppContainer(database, dateProvider, userPreferences)
         }
 
         fun reset() {

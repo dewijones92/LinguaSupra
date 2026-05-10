@@ -54,10 +54,15 @@ private val DarkFallback = darkColorScheme(
     outline = Palette.OutlineDark,
 )
 
+/**
+ * dynamicColor defaults to FALSE — the hand-picked coral/yellow/teal palette
+ * is more on-brand and consistent. Set true to opt into Material You from the
+ * device wallpaper.
+ */
 @Composable
 fun LinguaSupraTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val ctx = LocalContext.current

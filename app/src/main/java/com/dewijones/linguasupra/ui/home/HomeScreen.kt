@@ -31,11 +31,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -61,6 +69,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val viewModel: HomeViewModel = viewModel(factory = homeViewModelFactory(context))
     val progress by viewModel.state.collectAsStateWithLifecycle()
+    val userName by viewModel.userName.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier,
@@ -77,15 +86,55 @@ fun HomeScreen(
     ) { padding ->
         HomeContent(
             progress = progress,
+            userName = userName,
             onPlusOne = viewModel::recordCompletion,
             contentPadding = padding,
         )
     }
+
+    if (userName == null) {
+        FirstLaunchNameDialog(onSubmit = viewModel::setUserName)
+    }
+}
+
+@Composable
+private fun FirstLaunchNameDialog(onSubmit: (String) -> Unit) {
+    var draft by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = { /* blocking — no dismiss */ },
+        confirmButton = {
+            TextButton(
+                onClick = { if (draft.isNotBlank()) onSubmit(draft) },
+                enabled = draft.isNotBlank(),
+            ) { Text("Let's go!") }
+        },
+        title = { Text("👋 What should I call you?") },
+        text = {
+            Column {
+                Text(
+                    "I'll use this for greetings and reminder messages so it feels less robotic.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it.take(40) },
+                    label = { Text("Your name") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        imeAction = ImeAction.Done,
+                    ),
+                )
+            }
+        },
+    )
 }
 
 @Composable
 private fun HomeContent(
     progress: List<LanguageProgress>,
+    userName: String?,
     onPlusOne: (Long) -> Unit,
     contentPadding: PaddingValues,
 ) {
@@ -94,7 +143,7 @@ private fun HomeContent(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { Greeting() }
+            item { Greeting(userName = userName) }
             if (progress.isEmpty()) {
                 item { EmptyHomeCard() }
             } else {
@@ -108,10 +157,11 @@ private fun HomeContent(
 }
 
 @Composable
-private fun Greeting() {
+private fun Greeting(userName: String?) {
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE d MMMM"))
+    val greeting = if (userName.isNullOrBlank()) "Hi 👋" else "Hi $userName 👋"
     Column(modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)) {
-        Text("Hi 👋", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+        Text(greeting, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
         Text(today, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

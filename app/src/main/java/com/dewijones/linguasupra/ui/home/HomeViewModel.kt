@@ -22,10 +22,22 @@ class HomeViewModel(private val context: Context) : ViewModel() {
             initialValue = emptyList(),
         )
 
+    val userName: StateFlow<String?> = container.userPreferences.userName.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = null,
+    )
+
     fun recordCompletion(languageId: Long) {
         viewModelScope.launch {
             container.repository.recordCompletion(languageId)
             BannerNotificationManager(context, container.repository).refresh()
+        }
+    }
+
+    fun setUserName(name: String) {
+        viewModelScope.launch {
+            container.userPreferences.setUserName(name)
         }
     }
 }
