@@ -97,6 +97,7 @@ fun HomeScreen(
     val selfiePath by viewModel.selfiePath.collectAsStateWithLifecycle()
     val onboarding by viewModel.onboardingState.collectAsStateWithLifecycle()
     val showCelebration by viewModel.showCelebration.collectAsStateWithLifecycle()
+    val streak by viewModel.streak.collectAsStateWithLifecycle()
 
     val retakeLauncher = rememberSelfieLauncher(prefix = "retake") { path ->
         viewModel.setSelfiePath(path)
@@ -127,6 +128,7 @@ fun HomeScreen(
             progress = progress,
             userName = userName,
             selfiePath = selfiePath,
+            streak = streak,
             onPlusOne = viewModel::recordCompletion,
             onAvatarTap = retakeLauncher,
             contentPadding = padding,
@@ -298,6 +300,7 @@ private fun HomeContent(
     progress: List<LanguageProgress>,
     userName: String?,
     selfiePath: String?,
+    streak: Int,
     onPlusOne: (Long) -> Unit,
     onAvatarTap: () -> Unit,
     contentPadding: PaddingValues,
@@ -314,6 +317,9 @@ private fun HomeContent(
                     onAvatarTap = onAvatarTap,
                 )
             }
+            if (streak > 0) {
+                item { StreakBadge(streak = streak) }
+            }
             if (progress.isEmpty()) {
                 item { EmptyHomeCard() }
             } else {
@@ -322,6 +328,32 @@ private fun HomeContent(
                 }
             }
             item { Spacer(modifier = Modifier.height(40.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun StreakBadge(streak: Int) {
+    val flames = "🔥".repeat(streak.coerceAtMost(7))
+    androidx.compose.material3.Card(
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = flames,
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                text = if (streak == 1) "1 day streak" else "$streak day streak",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }

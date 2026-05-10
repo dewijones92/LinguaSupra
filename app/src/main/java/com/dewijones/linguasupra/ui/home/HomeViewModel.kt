@@ -31,6 +31,12 @@ class HomeViewModel(private val context: Context) : ViewModel() {
             initialValue = emptyList(),
         )
 
+    val streak: StateFlow<Int> = container.repository.observeStreak().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = 0,
+    )
+
     val userName: StateFlow<String?> = prefs.userName.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
