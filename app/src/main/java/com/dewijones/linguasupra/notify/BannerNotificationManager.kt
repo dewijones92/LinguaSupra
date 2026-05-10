@@ -66,6 +66,7 @@ class BannerNotificationManager(
             .setContentTitle(context.getString(R.string.banner_title))
             .setContentText("…")
             .setContentIntent(launchAppIntent())
+            .setDeleteIntent(BannerDismissReceiver.pendingIntent(context))
             .build()
     }
 
@@ -84,6 +85,7 @@ class BannerNotificationManager(
             .setCustomContentView(buildCollapsed(pkg, progress))
             .setCustomBigContentView(buildExpanded(pkg, progress))
             .setContentIntent(launchAppIntent())
+            .setDeleteIntent(BannerDismissReceiver.pendingIntent(context))
             .build()
     }
 
