@@ -56,18 +56,39 @@ class ReminderReceiver : BroadcastReceiver() {
             val name = container.userPreferences.userName.first()
             val dayOfYear = container.dateProvider.today().dayOfYear
 
-            val message = ReminderCopy.build(
+            val curated = ReminderCopy.build(
                 slot = slot,
                 userName = name,
                 outstanding = outstanding,
                 dayOfYear = dayOfYear,
             )
+            // Try Gemini Nano for the body; fall back to the curated tail.
+            // Title stays curated either way — the LLM-generated line lives
+            // inside the BigText body where it has room to breathe.
+            val message = curated?.let { c ->
+                val nanoLine = nanoCopywriter(context).generate(slot, name, outstanding)
+                if (nanoLine != null) {
+                    val list = c.body.lineSequence().firstOrNull().orEmpty()
+                    c.copy(body = if (list.isNotBlank()) "$list\n$nanoLine" else nanoLine)
+                } else {
+                    c
+                }
+            }
             if (message != null) postNotification(context, slot, message)
 
             // Always re-schedule for the next firing so reminders persist
             // even if today's was skipped (everything complete).
             ReminderScheduler(context, container.dateProvider).schedule(slot)
         }
+
+        @Volatile
+        private var nanoInstance: NanoCopywriter? = null
+        private fun nanoCopywriter(context: Context): NanoCopywriter =
+            nanoInstance ?: synchronized(this) {
+                nanoInstance ?: NanoCopywriter(context.applicationContext).also {
+                    nanoInstance = it
+                }
+            }
 
         private fun postNotification(
             context: Context,

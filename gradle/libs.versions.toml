@@ -20,6 +20,11 @@ room = "2.7.1"
 # Coroutines
 coroutines = "1.10.1"
 
+# Google AI Edge SDK — on-device Gemini Nano via AICore. Only loads on
+# Pixel 8 Pro+ / supported flagship devices; the integration is wired
+# behind a runtime feature check and falls back to curated copy elsewhere.
+googleAiEdgeAicore = "0.0.1-exp01"
+
 # Test
 junit = "4.13.2"
 androidxTestExt = "1.2.1"
@@ -61,6 +66,9 @@ room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
 # Coroutines
 coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+
+# Google AI Edge SDK — Gemini Nano via AICore
+google-ai-edge-aicore = { module = "com.google.ai.edge.aicore:aicore", version.ref = "googleAiEdgeAicore" }
 
 # Test
 junit = { module = "junit:junit", version.ref = "junit" }
