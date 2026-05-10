@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+    <!-- Splash theme: shown during cold start before MainActivity is ready.
+         Uses the AndroidX SplashScreen compat library so behaviour is
+         consistent across Android 12 (native API) and earlier targets. -->
+    <style name="Theme.LinguaSupra.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.LinguaSupra</item>
+    </style>
+
+    <!-- Post-splash theme: minimal because the app uses Compose theming. -->
     <style name="Theme.LinguaSupra" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>
