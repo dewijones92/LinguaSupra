@@ -136,6 +136,10 @@ class Repository(
 
     suspend fun deleteCompletion(id: Long) = completionDao.delete(id)
 
+    /** Bulk-delete completions by id. Returns the number of rows actually removed. */
+    suspend fun deleteCompletions(ids: Collection<Long>): Int =
+        if (ids.isEmpty()) 0 else completionDao.deleteByIds(ids.toList())
+
     /** Update a completion's timestamp (also recomputes day_local_iso). */
     suspend fun updateCompletionTime(id: Long, newInstant: Instant) {
         val row = completionDao.byId(id) ?: return

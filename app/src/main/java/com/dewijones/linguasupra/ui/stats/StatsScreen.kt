@@ -1,7 +1,10 @@
 package com.dewijones.linguasupra.ui.stats
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +23,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
@@ -83,18 +88,43 @@ fun StatsScreen(onBack: () -> Unit) {
 
     val series14 by vm.series14.collectAsStateWithLifecycle()
     val all by vm.allCompletions.collectAsStateWithLifecycle()
+    val selectedIds by vm.selectedIds.collectAsStateWithLifecycle()
+    val inSelectionMode = selectedIds.isNotEmpty()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<CompletionWithLanguage?>(null) }
     var deleteTarget by remember { mutableStateOf<CompletionWithLanguage?>(null) }
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
+
+    // System back gesture clears selection before leaving the screen.
+    BackHandler(enabled = inSelectionMode) { vm.clearSelection() }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("📊 Stats", fontWeight = FontWeight.Bold) },
+                title = {
+                    if (inSelectionMode) {
+                        Text("${selectedIds.size} selected", fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("📊 Stats", fontWeight = FontWeight.Bold)
+                    }
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    if (inSelectionMode) {
+                        IconButton(onClick = vm::clearSelection) {
+                            Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                },
+                actions = {
+                    if (inSelectionMode) {
+                        IconButton(onClick = { showBulkDeleteConfirm = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete selected")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -133,6 +163,10 @@ fun StatsScreen(onBack: () -> Unit) {
                 items(rows, key = { it.completion.id }) { row ->
                     CompletionRow(
                         row = row,
+                        selected = row.completion.id in selectedIds,
+                        inSelectionMode = inSelectionMode,
+                        onTap = { vm.toggleSelected(row.completion.id) },
+                        onLongPress = { vm.toggleSelected(row.completion.id) },
                         onEdit = { editTarget = row },
                         onDelete = { deleteTarget = row },
                     )
@@ -190,6 +224,23 @@ fun StatsScreen(onBack: () -> Unit) {
             },
             dismissButton = {
                 TextButton(onClick = { deleteTarget = null }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showBulkDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBulkDeleteConfirm = false },
+            title = { Text("Delete ${selectedIds.size} ${if (selectedIds.size == 1) "lesson" else "lessons"}?") },
+            text = { Text("This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.deleteSelected()
+                    showBulkDeleteConfirm = false
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkDeleteConfirm = false }) { Text("Cancel") }
             },
         )
     }
@@ -356,19 +407,52 @@ private fun DayHeader(day: LocalDate, count: Int) {
     HorizontalDivider()
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CompletionRow(
     row: CompletionWithLanguage,
+    selected: Boolean,
+    inSelectionMode: Boolean,
+    onTap: () -> Unit,
+    onLongPress: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
+    val rowBg = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .background(rowBg)
+            .combinedClickable(
+                onClick = { if (inSelectionMode) onTap() },
+                onLongClick = onLongPress,
+            )
+            .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (inSelectionMode) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(
+                        color = if (selected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceVariant,
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) {
+                    Icon(
+                        Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+        }
         Box(
             modifier = Modifier
                 .size(width = 4.dp, height = 32.dp)
@@ -381,27 +465,29 @@ private fun CompletionRow(
             Text(row.language.name, fontWeight = FontWeight.Bold)
             Text(row.timeLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Box {
-            IconButton(onClick = { menu = true }) {
-                Icon(Icons.Filled.Edit, contentDescription = "Edit or delete")
-            }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(
-                    text = { Text("Edit time") },
-                    onClick = {
-                        menu = false
-                        onEdit()
-                    },
-                    leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                )
-                DropdownMenuItem(
-                    text = { Text("Delete") },
-                    onClick = {
-                        menu = false
-                        onDelete()
-                    },
-                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
-                )
+        if (!inSelectionMode) {
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Edit or delete")
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Edit time") },
+                        onClick = {
+                            menu = false
+                            onEdit()
+                        },
+                        leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            menu = false
+                            onDelete()
+                        },
+                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                    )
+                }
             }
         }
     }
