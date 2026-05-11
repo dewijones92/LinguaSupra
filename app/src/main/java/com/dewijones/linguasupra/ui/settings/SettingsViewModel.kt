@@ -1,17 +1,21 @@
 package com.dewijones.linguasupra.ui.settings
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dewijones.linguasupra.data.AppContainer
+import com.dewijones.linguasupra.data.DatabaseImporter
 import com.dewijones.linguasupra.data.Language
 import com.dewijones.linguasupra.data.PresetLanguage
 import com.dewijones.linguasupra.data.PresetLanguages
 import com.dewijones.linguasupra.notify.BannerNotificationManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsViewModel(private val context: Context) : ViewModel() {
 
@@ -70,6 +74,15 @@ class SettingsViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch {
             container.repository.reorderLanguages(orderedIds)
             BannerNotificationManager(context, container.repository).refresh()
+        }
+    }
+
+    fun importDatabase(uri: Uri, onResult: (DatabaseImporter.Result) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                DatabaseImporter.import(context, uri)
+            }
+            onResult(result)
         }
     }
 }

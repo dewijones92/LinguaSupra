@@ -1,5 +1,8 @@
 package com.dewijones.linguasupra.ui.settings
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,10 +29,12 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -59,6 +64,17 @@ fun SettingsScreen(
     val languages by viewModel.languages.collectAsStateWithLifecycle()
     val nanoEnabled by viewModel.nanoEnabled.collectAsStateWithLifecycle()
     var showAddSheet by remember { mutableStateOf(false) }
+    var showImportConfirm by remember { mutableStateOf(false) }
+    var importResult by remember { mutableStateOf<com.dewijones.linguasupra.data.DatabaseImporter.Result?>(null) }
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importDatabase(uri) { result ->
+                importResult = result
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -87,7 +103,74 @@ fun SettingsScreen(
             onIncrementQuota = { viewModel.updateQuota(it, it.dailyQuota + 1) },
             onDecrementQuota = { viewModel.updateQuota(it, it.dailyQuota - 1) },
             onDelete = { viewModel.delete(it.id) },
+            onImportDatabase = { showImportConfirm = true },
             contentPadding = padding,
+        )
+    }
+
+    if (showImportConfirm) {
+        AlertDialog(
+            onDismissRequest = { showImportConfirm = false },
+            title = { Text("Import database file?") },
+            text = {
+                Text(
+                    "This replaces your current lessons, languages and history with " +
+                        "whatever is in the .db file you pick. The app will close after " +
+                        "import — re-open it to see the restored data. This can't be undone.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showImportConfirm = false
+                    // SQLite files have no MIME type the SAF picker reliably honours;
+                    // accept everything and validate inside DatabaseImporter.
+                    importLauncher.launch(arrayOf("*/*"))
+                }) { Text("Pick file…") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    importResult?.let { result ->
+        val activity = context as? Activity
+        AlertDialog(
+            onDismissRequest = {
+                importResult = null
+                if (result is com.dewijones.linguasupra.data.DatabaseImporter.Result.Success) {
+                    activity?.finishAndRemoveTask()
+                }
+            },
+            title = {
+                Text(
+                    when (result) {
+                        is com.dewijones.linguasupra.data.DatabaseImporter.Result.Success -> "Imported ✓"
+                        is com.dewijones.linguasupra.data.DatabaseImporter.Result.Failure -> "Import failed"
+                    },
+                )
+            },
+            text = {
+                Text(
+                    when (result) {
+                        is com.dewijones.linguasupra.data.DatabaseImporter.Result.Success ->
+                            "The app will close now. Re-open it and your data should be back."
+                        is com.dewijones.linguasupra.data.DatabaseImporter.Result.Failure -> result.message
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val wasSuccess = result is com.dewijones.linguasupra.data.DatabaseImporter.Result.Success
+                    importResult = null
+                    if (wasSuccess) activity?.finishAndRemoveTask()
+                }) {
+                    Text(
+                        if (result is com.dewijones.linguasupra.data.DatabaseImporter.Result.Success) "Close app"
+                        else "OK",
+                    )
+                }
+            },
         )
     }
 
@@ -117,6 +200,7 @@ private fun SettingsContent(
     onIncrementQuota: (Language) -> Unit,
     onDecrementQuota: (Language) -> Unit,
     onDelete: (Language) -> Unit,
+    onImportDatabase: () -> Unit,
     contentPadding: PaddingValues,
 ) {
     Box(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
@@ -166,6 +250,38 @@ private fun SettingsContent(
                         onDelete = { onDelete(lang) },
                     )
                 }
+            }
+            item(key = "data-migration") {
+                Spacer(modifier = Modifier.height(12.dp))
+                DataMigrationCard(onImportDatabase = onImportDatabase)
+                Spacer(modifier = Modifier.height(80.dp)) // breathing room above the FAB
+            }
+        }
+    }
+}
+
+@Composable
+private fun DataMigrationCard(onImportDatabase: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text(
+                text = "📥 Restore data",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Import a LinguaSupra database file (e.g. an export from the previous .debug install). Replaces your current data.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            TextButton(onClick = onImportDatabase) {
+                Text("Import .db file…")
             }
         }
     }

@@ -41,5 +41,20 @@ class AppContainer private constructor(
         fun reset() {
             instance = null
         }
+
+        /**
+         * Close the live Room database and null the singleton so the next
+         * [get] rebuilds. Used by [DatabaseImporter] before swapping the
+         * on-disk lingua.db file underneath us. The [context] parameter is
+         * accepted for symmetry but not used — kept so callers don't have
+         * to special-case this versus [get].
+         */
+        @Suppress("UNUSED_PARAMETER")
+        fun closeAndReset(context: Context) {
+            synchronized(this) {
+                instance?.database?.close()
+                instance = null
+            }
+        }
     }
 }
