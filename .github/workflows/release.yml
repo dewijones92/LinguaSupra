@@ -45,9 +45,9 @@ jobs:
           echo "name=${NAME}"   >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}"     >> "$GITHUB_OUTPUT"
 
-      - name: Build debug APK
+      - name: Build release APK
         run: |
-          ./gradlew :app:assembleDebug \
+          ./gradlew :app:assembleRelease \
             -PreleaseVersionCode=${{ steps.version.outputs.code }} \
             -PreleaseVersionName=${{ steps.version.outputs.name }} \
             --no-daemon --stacktrace
@@ -55,9 +55,9 @@ jobs:
       - name: Locate APK
         id: apk
         run: |
-          APK="$(find app/build/outputs/apk/debug -maxdepth 2 -name '*.apk' -print -quit)"
+          APK="$(find app/build/outputs/apk/release -maxdepth 2 -name '*.apk' -print -quit)"
           if [ -z "$APK" ]; then
-            echo "::error::No APK produced at app/build/outputs/apk/debug"
+            echo "::error::No APK produced at app/build/outputs/apk/release"
             exit 1
           fi
           OUT="LinguaSupra-${{ steps.version.outputs.tag }}.apk"
