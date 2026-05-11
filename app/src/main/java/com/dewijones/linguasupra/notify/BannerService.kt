@@ -167,5 +167,22 @@ class BannerService : Service() {
                 Log.w(TAG, "repost request refused", e)
             }
         }
+
+        /**
+         * Synchronously stops the service so callers (e.g. [DatabaseImporter])
+         * can swap the underlying Room DB file without a live observer
+         * stamping a stale notification or holding an open file handle.
+         *
+         * Use sparingly — under normal operation the banner is meant to stay
+         * resident.
+         */
+        fun requestStop(context: Context) {
+            val intent = Intent(context, BannerService::class.java)
+            try {
+                context.stopService(intent)
+            } catch (e: Exception) {
+                Log.w(TAG, "stopService refused", e)
+            }
+        }
     }
 }
