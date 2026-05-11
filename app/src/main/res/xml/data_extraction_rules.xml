@@ -9,15 +9,19 @@
                                    path string, onboarding flag, last celebration
                                    date, nano-enabled toggle).
 
-         What we explicitly EXCLUDE:
-         - `database/lingua.db-shm/-wal` — SQLite write-ahead-log temp files.
-                                          Including them risks restoring a
+         What we don't back up:
+         - `database/lingua.db-shm/-wal` — SQLite write-ahead-log temp files;
+                                          excluded so we never restore a
                                           half-committed transaction state.
-         - `file/selfies/`             — selfies are cheap to retake, count
+         - `file/selfies/`             — not in an `<include>`, so the backup
+                                          agent skips it automatically. Lint
+                                          forbids an explicit `<exclude>` for
+                                          a path that isn't already included.
+                                          Selfies are cheap to retake, count
                                           against the 25 MB per-app quota, and
                                           the path string in datastore will
                                           dangle harmlessly on restore (Home
-                                          falls back to the bouncing-emoji
+                                          falls back to the initial-letter
                                           avatar if the file is missing). -->
     <cloud-backup>
         <include domain="database" path="lingua.db" />
@@ -25,12 +29,10 @@
         <include domain="file" path="datastore/" />
         <exclude domain="database" path="lingua.db-shm" />
         <exclude domain="database" path="lingua.db-wal" />
-        <exclude domain="file" path="selfies/" />
     </cloud-backup>
     <device-transfer>
         <include domain="database" path="lingua.db" />
         <include domain="sharedpref" />
         <include domain="file" path="datastore/" />
-        <exclude domain="file" path="selfies/" />
     </device-transfer>
 </data-extraction-rules>
